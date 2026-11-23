@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "io.github.ktorzaalone_lang.habadquiz",
+    "sha256_cert_fingerprints": ["90:27:40:B0:9B:3E:B0:C0:53:A2:CD:97:4B:4B:98:22:BA:63:A7:16:1A:36:CC:5D:E3:BE:A7:E7:1A:23:95:29"]
+  }
+}]
