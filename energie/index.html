@@ -298,7 +298,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 const cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 45 });
 map.addLayer(cluster);
 
-const ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+const ENDPOINTS = ["https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
 const SHOPS = "supermarket|wholesale|frozen_food|doityourself|trade|garden_centre|furniture|sports|department_store|electronics|variety_store|toys";
 let stores = [];
 const active = { both: true, destrat: true, hpbp: true };
@@ -312,15 +312,18 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "
 function setStatus(msg, err) { const s = $("status"); s.textContent = msg; s.classList.toggle("err", !!err); }
 
 async function overpass(query) {
-  let lastErr;
-  for (const url of ENDPOINTS) {
-    try {
-      const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+  // Interroge tous les serveurs en même temps et garde le premier qui répond.
+  const ctrls = ENDPOINTS.map(() => new AbortController());
+  const timer = setTimeout(() => ctrls.forEach(c => c.abort()), 120000);
+  try {
+    return await Promise.any(ENDPOINTS.map(async (url, i) => {
+      const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: ctrls[i].signal });
       if (!r.ok) throw new Error("HTTP " + r.status);
-      return await r.json();
-    } catch (e) { lastErr = e; }
-  }
-  throw lastErr;
+      const j = await r.json();
+      ctrls.forEach((c, k) => { if (k !== i) c.abort(); });
+      return j;
+    }));
+  } finally { clearTimeout(timer); }
 }
 
 function addressOf(t) {
