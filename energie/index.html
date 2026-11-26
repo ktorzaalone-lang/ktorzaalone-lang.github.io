@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Déstratification & HP/BP flottante — Carte des magasins éligibles CEE</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<style>
+:root{
+  --ink:#0f1b2d;--ink2:#4a5568;--line:#dfe3ea;--bg:#f6f7f9;--white:#fff;
+  --blue:#0b5fff;--both:#0b5fff;--destrat:#e8590c;--hpbp:#0e9f6e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--white);line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* Nav */
+nav{border-bottom:1px solid var(--line);background:var(--white);position:sticky;top:0;z-index:1000}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:16px}
+.brand{font-weight:800;font-size:19px;letter-spacing:-.4px;display:flex;align-items:center;gap:10px;text-decoration:none}
+.brand i{width:28px;height:28px;border-radius:7px;background:var(--ink);display:grid;place-items:center;font-style:normal;color:#fff;font-size:15px}
+nav ul{display:flex;gap:26px;list-style:none;font-size:15px}
+nav ul a{text-decoration:none;color:var(--ink2)}
+nav ul a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:8px;font-weight:650;font-size:15px;text-decoration:none;border:1px solid transparent;cursor:pointer;transition:.15s}
+.btn-dark{background:var(--ink);color:#fff}
+.btn-dark:hover{background:#22324c}
+.btn-line{border-color:var(--line);background:#fff}
+.btn-line:hover{border-color:var(--ink2)}
+
+/* Hero */
+.hero{padding:72px 0 56px;border-bottom:1px solid var(--line)}
+.hero .wrap{display:grid;grid-template-columns:1.25fr 1fr;gap:56px;align-items:end}
+.hero h1{font-size:clamp(36px,5vw,58px);line-height:1.04;letter-spacing:-1.8px;font-weight:800}
+.hero p{font-size:18px;color:var(--ink2);margin:22px 0 30px;max-width:560px}
+.hero .cta{display:flex;gap:12px;flex-wrap:wrap}
+.facts{display:grid;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.facts div{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;align-items:baseline}
+.facts div:last-child{border-bottom:0}
+.facts b{font-size:15px}
+.facts span{font-size:13px;color:var(--ink2);text-align:right}
+
+/* Services */
+section{padding:72px 0}
+.sh{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:32px;flex-wrap:wrap}
+h2{font-size:clamp(28px,3.4vw,40px);letter-spacing:-1px;line-height:1.1;font-weight:800}
+.sh p{color:var(--ink2);max-width:460px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.card{border:1px solid var(--line);border-radius:12px;padding:26px;display:flex;flex-direction:column;gap:12px}
+.card .code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--ink2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;align-self:flex-start}
+.card h3{font-size:20px;letter-spacing:-.3px}
+.card p{color:var(--ink2);font-size:15px}
+.card ul{list-style:none;font-size:14px;display:grid;gap:6px;margin-top:auto;padding-top:8px;border-top:1px solid var(--line)}
+.card li:before{content:"— ";color:var(--ink2)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+
+/* Steps */
+.steps{background:var(--bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.steps ol{list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:20px;counter-reset:s}
+.steps li{counter-increment:s;padding-top:18px;border-top:2px solid var(--ink)}
+.steps li:before{content:"0" counter(s);font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--ink2);display:block;margin-bottom:8px}
+.steps b{display:block;font-size:17px;margin-bottom:6px}
+.steps span{color:var(--ink2);font-size:15px}
+
+/* Map tool */
+#carte{padding-bottom:40px}
+.tool{display:grid;grid-template-columns:340px 1fr;border:1px solid var(--line);border-radius:12px;overflow:hidden;height:min(78vh,760px);min-height:560px}
+.panel{display:flex;flex-direction:column;border-right:1px solid var(--line);min-height:0;background:#fff}
+.ctrl{padding:16px;border-bottom:1px solid var(--line);display:grid;gap:10px}
+.ctrl > label{font-size:12px;font-weight:650;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em}
+.ctrl select,.ctrl input[type=search]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.row{display:flex;gap:8px}
+.row .btn{flex:1;justify-content:center;padding:10px 12px;font-size:14px}
+.toggles{display:grid;gap:6px}
+.tg{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:14px;user-select:none}
+.tg input{accent-color:var(--ink)}
+.tg .n{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--ink2)}
+.status{padding:10px 16px;font-size:13px;color:var(--ink2);border-bottom:1px solid var(--line);min-height:40px}
+.status.err{color:#b42318}
+.list{overflow:auto;flex:1;min-height:0}
+.item{padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer;display:grid;gap:2px}
+.item:hover{background:var(--bg)}
+.item b{font-size:14px;display:flex;align-items:center;gap:6px}
+.item small{color:var(--ink2);font-size:12.5px}
+.item .star{margin-left:auto;font-size:15px;color:#c9ced8}
+.item .star.on{color:#f5a400}
+.foot{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px}
+.foot .btn{flex:1;justify-content:center;padding:9px;font-size:13px}
+#map{width:100%;height:100%;background:#e9edf2}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--ink2);margin-top:14px}
+.note{font-size:13.5px;color:var(--ink2);margin-top:14px;max-width:900px}
+.pop b{font-size:15px;display:block;margin-bottom:2px}
+.pop small{color:var(--ink2);display:block;margin-bottom:8px}
+.pop .tag{display:inline-block;font-size:12px;font-weight:650;padding:2px 8px;border-radius:99px;margin:0 4px 6px 0;color:#fff}
+.pop ul{margin:4px 0 8px 16px;font-size:13px}
+.pop a{font-size:13px;margin-right:10px}
+
+/* Contact */
+.contact .wrap{display:grid;grid-template-columns:1fr 1fr;gap:56px}
+.contact form{display:grid;gap:12px}
+.contact input,.contact textarea,.contact select{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.contact textarea{min-height:120px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+footer{border-top:1px solid var(--line);padding:28px 0;color:var(--ink2);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+@media(max-width:960px){
+  nav ul{display:none}
+  .hero .wrap,.contact .wrap{grid-template-columns:1fr;gap:32px}
+  .cards{grid-template-columns:1fr}
+  .steps ol{grid-template-columns:1fr 1fr}
+  .tool{grid-template-columns:1fr;height:auto}
+  .panel{border-right:0;border-bottom:1px solid var(--line);max-height:none}
+  .list{max-height:300px}
+  #map{height:65vh}
+}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="brand" href="#"><i>⚡</i><span id="brandName">Énergie & Froid</span></a>
+  <ul><li><a href="#solutions">Solutions</a></li><li><a href="#cee">Financement CEE</a></li><li><a href="#carte">Carte des magasins</a></li><li><a href="#contact">Contact</a></li></ul>
+  <a class="btn btn-dark" href="#contact">Demander une étude</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div>
+    <h1>Moins de chauffage perdu sous le plafond. Moins d'électricité pour le froid.</h1>
+    <p>Nous installons des déstratificateurs d'air et des régulations HP/BP flottante dans les commerces et grandes surfaces, financés par les Certificats d'Économies d'Énergie.</p>
+    <div class="cta">
+      <a class="btn btn-dark" href="#carte">Voir les magasins éligibles →</a>
+      <a class="btn btn-line" href="#contact">Être rappelé</a>
+    </div>
+  </div>
+  <div class="facts">
+    <div><b>Déstratification</b><span>Fiche CEE BAT-TH-142</span></div>
+    <div><b>Haute pression flottante</b><span>Fiche CEE BAT-TH-134</span></div>
+    <div><b>Basse pression flottante</b><span>Fiche CEE BAT-TH-145</span></div>
+    <div><b>Partout en France</b><span>Étude et installation</span></div>
+  </div>
+</div></header>
+
+<section id="solutions"><div class="wrap">
+  <div class="sh"><h2>Deux solutions, un objectif : réduire la facture.</h2><p>Les grandes surfaces chauffent le plafond et font tourner leurs groupes froid à pleine puissance. On corrige les deux.</p></div>
+  <div class="cards">
+    <div class="card">
+      <span class="code">BAT-TH-142</span>
+      <h3><span class="dot" style="background:var(--destrat)"></span>Déstratification d'air</h3>
+      <p>L'air chaud monte et reste bloqué sous le toit. Le déstratificateur le ramène vers le sol : même confort, moins de chauffage.</p>
+      <ul><li>Hauteur sous plafond ≥ 5 m</li><li>Local clos et chauffé</li><li>Bricolage, jardineries, hypermarchés, entrepôts</li></ul>
+    </div>
+    <div class="card">
+      <span class="code">BAT-TH-134</span>
+      <h3><span class="dot" style="background:var(--hpbp)"></span>Haute pression flottante</h3>
+      <p>La régulation adapte la pression de condensation à la température extérieure : les compresseurs forcent moins.</p>
+      <ul><li>Groupe de production de froid</li><li>Étude technique préalable</li><li>Supermarchés, surgelés, grossistes</li></ul>
+    </div>
+    <div class="card">
+      <span class="code">BAT-TH-145</span>
+      <h3><span class="dot" style="background:var(--hpbp)"></span>Basse pression flottante</h3>
+      <p>La consigne d'évaporation suit le besoin réel en froid au lieu de rester fixe. Résultat : moins de consommation électrique.</p>
+      <ul><li>Groupe de production de froid</li><li>Étude technique préalable</li><li>Souvent combinée avec la HP flottante</li></ul>
+    </div>
+  </div>
+</div></section>
+
+<section class="steps" id="cee"><div class="wrap">
+  <div class="sh"><h2>Comment ça se passe</h2><p>Les travaux sont financés en grande partie par la prime CEE, versée par les fournisseurs d'énergie.</p></div>
+  <ol>
+    <li><b>Visite et étude</b><span>On vérifie la hauteur, le chauffage et les groupes froid sur place.</span></li>
+    <li><b>Devis avec prime déduite</b><span>Le montant de la prime CEE apparaît directement sur le devis.</span></li>
+    <li><b>Installation</b><span>Réalisée par un professionnel, sans fermer le magasin.</span></li>
+    <li><b>Économies</b><span>Les gains se voient dès la facture suivante.</span></li>
+  </ol>
+</div></section>
+
+<section id="carte"><div class="wrap">
+  <div class="sh"><h2>Carte des magasins potentiellement éligibles</h2><p>Choisis une région ou zoome sur une ville, puis clique sur « Chercher ici ». Les magasins viennent d'OpenStreetMap.</p></div>
+
+  <div class="tool">
+    <div class="panel">
+      <div class="ctrl">
+        <label for="region">Région</label>
+        <select id="region">
+          <option value="">— Choisir une région —</option>
+          <option>Auvergne-Rhône-Alpes</option><option>Bourgogne-Franche-Comté</option><option>Bretagne</option>
+          <option>Centre-Val de Loire</option><option>Corse</option><option>Grand Est</option><option>Hauts-de-France</option>
+          <option>Île-de-France</option><option>Normandie</option><option>Nouvelle-Aquitaine</option><option>Occitanie</option>
+          <option>Pays de la Loire</option><option>Provence-Alpes-Côte d'Azur</option>
+        </select>
+        <div class="row">
+          <button class="btn btn-dark" id="btnHere">Chercher ici</button>
+          <button class="btn btn-line" id="btnRegion">Toute la région</button>
+        </div>
+        <div class="toggles">
+          <label class="tg"><span><span class="dot" style="background:var(--both)"></span>Déstrat + HP/BP</span><span><span class="n" id="nBoth">0</span> <input type="checkbox" data-cat="both" checked></span></label>
+          <label class="tg"><span><span class="dot" style="background:var(--destrat)"></span>Déstrat seule</span><span><span class="n" id="nDestrat">0</span> <input type="checkbox" data-cat="destrat" checked></span></label>
+          <label class="tg"><span><span class="dot" style="background:var(--hpbp)"></span>HP/BP seule</span><span><span class="n" id="nHpbp">0</span> <input type="checkbox" data-cat="hpbp" checked></span></label>
+        </div>
+        <input type="search" id="q" placeholder="Filtrer : enseigne, ville…">
+      </div>
+      <div class="status" id="status">Zoome sur une zone et clique sur « Chercher ici ».</div>
+      <div class="list" id="list"></div>
+      <div class="foot">
+        <button class="btn btn-line" id="btnFav">★ Ma liste (<span id="nFav">0</span>)</button>
+        <button class="btn btn-line" id="btnCsv">Exporter CSV</button>
+      </div>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--both)"></span>Grandes surfaces alimentaires : grand volume chauffé + groupes froid</span>
+    <span><span class="dot" style="background:var(--destrat)"></span>Bricolage, jardinerie, ameublement, sport : grand volume</span>
+    <span><span class="dot" style="background:var(--hpbp)"></span>Supérettes et surgelés : groupes froid, plafond bas</span>
+  </div>
+  <p class="note">⚠️ L'éligibilité est <b>estimée</b> à partir du type de magasin et de l'enseigne. Elle doit être confirmée sur place : hauteur sous plafond d'au moins 5 m et local clos et chauffé pour la déstratification, présence d'un groupe de production de froid et étude technique préalable pour la HP/BP flottante.</p>
+</div></section>
+
+<section class="contact" id="contact"><div class="wrap">
+  <div>
+    <h2>Un magasin à équiper ?</h2>
+    <p style="color:var(--ink2);margin:16px 0 24px">Laissez vos coordonnées, on vous rappelle pour une étude gratuite et un devis avec la prime CEE déduite.</p>
+    <div class="facts">
+      <div><b>Téléphone</b><span id="ctPhone">À compléter</span></div>
+      <div><b>Email</b><span id="ctMail">À compléter</span></div>
+      <div><b>Zone d'intervention</b><span>France métropolitaine</span></div>
+    </div>
+  </div>
+  <form id="form">
+    <div class="two"><input required placeholder="Nom" id="fNom"><input required placeholder="Entreprise / magasin" id="fEnt"></div>
+    <div class="two"><input required type="tel" placeholder="Téléphone" id="fTel"><input type="email" placeholder="Email" id="fMail"></div>
+    <select id="fSol"><option>Déstratification</option><option>HP/BP flottante</option><option>Les deux</option><option>Je ne sais pas</option></select>
+    <textarea placeholder="Adresse du site, surface, hauteur sous plafond si vous la connaissez…" id="fMsg"></textarea>
+    <button class="btn btn-dark" type="submit" style="justify-content:center">Envoyer la demande</button>
+  </form>
+</div></section>
+
+<footer><div class="wrap"><span>© <span id="yr"></span> <span class="bn">Énergie & Froid</span></span><span>Données magasins © contributeurs OpenStreetMap (ODbL)</span></div></footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+/* ====== À PERSONNALISER ====== */
+const CONFIG = {
+  brand: "Énergie & Froid",          // nom de l'entreprise
+  phone: "",                          // ex : "06 12 34 56 78"
+  email: ""                           // ex : "contact@entreprise.fr"
+};
+/* ============================= */
+
+document.getElementById("brandName").textContent = CONFIG.brand;
+document.querySelectorAll(".bn").forEach(e => e.textContent = CONFIG.brand);
+document.getElementById("yr").textContent = new Date().getFullYear();
+if (CONFIG.phone) document.getElementById("ctPhone").innerHTML = `<a href="tel:${CONFIG.phone.replace(/\s/g,"")}">${CONFIG.phone}</a>`;
+if (CONFIG.email) document.getElementById("ctMail").innerHTML = `<a href="mailto:${CONFIG.email}">${CONFIG.email}</a>`;
+
+/* ---------- Classification ---------- */
+const COLORS = { both: "#0b5fff", destrat: "#e8590c", hpbp: "#0e9f6e" };
+const LABELS = { both: "Déstrat + HP/BP", destrat: "Déstrat", hpbp: "HP/BP" };
+const norm = s => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+const SMALL_FOOD = /(city|express|proxi|vival|spar|coccinelle|diagonal|\butile\b|casino shop|petit casino|8 a huit|franprix|monop|daily monop|carrefour contact|u express|intermarche express|contact|naturalia|bio c' bon|bio c bon|marche frais|g20|sitis|cocci|epicerie|alimentation generale|superette|minimarket)/;
+const BIG_BOX = /(ikea|conforama|\bbut\b|maisons du monde|decathlon|intersport|go sport|sport 2000|boulanger|darty|but cosy|gifi|la foir.?fouille|action|centrakor|noz|stokomani|bricomarche|brico depot|castorama|leroy merlin|mr bricolage|weldom|bricoman|point p|cedeo|gedimat|truffaut|jardiland|botanic|gamm vert|villaverde|kiabi|tati|babou|la halle|toys ?r ?us|king jouet|cultura|fnac|norauto|feu vert|speedy|metro|promocash|transgourmet|costco|grand frais|picard)/;
+
+function classify(t) {
+  const shop = t.shop || "";
+  const nm = norm([t.brand, t.name, t["brand:wikidata"] ? "" : ""].join(" "));
+  const reasons = [];
+  let cat = null;
+
+  if (shop === "supermarket") {
+    if (SMALL_FOOD.test(nm)) { cat = "hpbp"; reasons.push("Supérette : vitrines et chambres froides", "Plafond généralement < 5 m"); }
+    else { cat = "both"; reasons.push("Grande surface alimentaire : grand volume chauffé", "Groupes froid (rayons frais, surgelés)"); }
+  } else if (shop === "wholesale") {
+    cat = "both"; reasons.push("Grossiste / cash & carry : entrepôt de grande hauteur", "Chambres froides");
+  } else if (shop === "frozen_food") {
+    cat = "hpbp"; reasons.push("Magasin de surgelés : groupes froid permanents");
+  } else if (shop === "doityourself" || shop === "trade" || shop === "garden_centre") {
+    cat = "destrat"; reasons.push(shop === "garden_centre" ? "Jardinerie : serre ou hall de grande hauteur" : "Bricolage / négoce : bâtiment de grande hauteur");
+  } else if (["furniture","sports","department_store","electronics","variety_store","toys","clothes","car_repair","books"].includes(shop)) {
+    if (BIG_BOX.test(nm)) { cat = "destrat"; reasons.push("Grande enseigne : surface de vente de grande hauteur"); }
+  }
+  return cat ? { cat, reasons } : null;
+}
+
+/* ---------- Carte ---------- */
+const map = L.map("map", { preferCanvas: true }).setView([45.76, 4.85], 11);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19, attribution: '&copy; contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+}).addTo(map);
+const cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 45 });
+map.addLayer(cluster);
+
+const ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+const SHOPS = "supermarket|wholesale|frozen_food|doityourself|trade|garden_centre|furniture|sports|department_store|electronics|variety_store|toys";
+let stores = [];
+const active = { both: true, destrat: true, hpbp: true };
+let favs = {};
+try { favs = JSON.parse(localStorage.getItem("cee_favs") || "{}"); } catch (e) { favs = {}; }
+const saveFavs = () => { try { localStorage.setItem("cee_favs", JSON.stringify(favs)); } catch (e) {} };
+let showFavOnly = false;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function setStatus(msg, err) { const s = $("status"); s.textContent = msg; s.classList.toggle("err", !!err); }
+
+async function overpass(query) {
+  let lastErr;
+  for (const url of ENDPOINTS) {
+    try {
+      const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+function addressOf(t) {
+  const street = [t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" ");
+  const city = [t["addr:postcode"], t["addr:city"]].filter(Boolean).join(" ");
+  return [street, city].filter(Boolean).join(", ");
+}
+
+function ingest(data) {
+  const seen = new Set();
+  stores = [];
+  for (const el of data.elements || []) {
+    const t = el.tags || {};
+    const c = classify(t);
+    if (!c) continue;
+    const lat = el.lat ?? el.center?.lat, lon = el.lon ?? el.center?.lon;
+    if (lat == null || lon == null) continue;
+    const id = el.type[0] + el.id;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    stores.push({ id, lat, lon, name: t.name || t.brand || "Magasin sans nom", brand: t.brand || "", shop: t.shop, addr: addressOf(t), city: t["addr:city"] || "", ...c });
+  }
+  stores.sort((a, b) => ({ both: 0, destrat: 1, hpbp: 2 }[a.cat] - { both: 0, destrat: 1, hpbp: 2 }[b.cat]) || a.name.localeCompare(b.name, "fr"));
+}
+
+async function load(areaClause, label) {
+  setStatus("Chargement des magasins " + label + "… (ça peut prendre jusqu'à 30 s)");
+  $("btnHere").disabled = $("btnRegion").disabled = true;
+  const q = `[out:json][timeout:90];${areaClause.pre || ""}(nwr["shop"~"^(${SHOPS})$"]${areaClause.filter};);out center tags;`;
+  try {
+    const data = await overpass(q);
+    ingest(data);
+    render(true);
+    setStatus(`${stores.length} magasins potentiellement éligibles ${label}.`);
+  } catch (e) {
+    setStatus("Le serveur de cartes est saturé. Réessaie dans une minute, ou zoome sur une zone plus petite.", true);
+  } finally {
+    $("btnHere").disabled = $("btnRegion").disabled = false;
+  }
+}
+
+function popupHtml(s) {
+  const gm = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.name + " " + (s.addr || s.lat + "," + s.lon))}`;
+  const tags = s.cat === "both"
+    ? `<span class="tag" style="background:${COLORS.destrat}">Déstrat</span><span class="tag" style="background:${COLORS.hpbp}">HP/BP</span>`
+    : `<span class="tag" style="background:${COLORS[s.cat]}">${LABELS[s.cat]}</span>`;
+  return `<div class="pop"><b>${esc(s.name)}</b><small>${esc(s.addr || "Adresse non renseignée")}</small>${tags}
+    <ul>${s.reasons.map(r => `<li>${esc(r)}</li>`).join("")}</ul>
+    <a href="${gm}" target="_blank" rel="noopener">Ouvrir dans Google Maps</a>
+    <a href="#" data-fav="${s.id}">${favs[s.id] ? "★ Retirer de ma liste" : "☆ Ajouter à ma liste"}</a></div>`;
+}
+
+function visible() {
+  const q = norm($("q").value.trim());
+  return stores.filter(s => active[s.cat] && (!showFavOnly || favs[s.id]) && (!q || norm(s.name + " " + s.brand + " " + s.addr).includes(q)));
+}
+
+const markers = {};
+function render(fit) {
+  cluster.clearLayers();
+  for (const k in markers) delete markers[k];
+  const vis = visible();
+  const layers = vis.map(s => {
+    const m = L.circleMarker([s.lat, s.lon], { radius: 8, color: "#fff", weight: 2, fillColor: COLORS[s.cat], fillOpacity: .95 });
+    m.bindPopup(() => popupHtml(s));
+    markers[s.id] = m;
+    return m;
+  });
+  cluster.addLayers(layers);
+  $("nBoth").textContent = stores.filter(s => s.cat === "both").length;
+  $("nDestrat").textContent = stores.filter(s => s.cat === "destrat").length;
+  $("nHpbp").textContent = stores.filter(s => s.cat === "hpbp").length;
+  $("nFav").textContent = Object.keys(favs).length;
+  $("list").innerHTML = vis.slice(0, 400).map(s => `
+    <div class="item" data-id="${s.id}">
+      <b><span class="dot" style="background:${COLORS[s.cat]};margin:0"></span>${esc(s.name)}<span class="star ${favs[s.id] ? "on" : ""}" data-fav="${s.id}" title="Ma liste">★</span></b>
+      <small>${esc(s.addr || "Adresse non renseignée")}</small>
+    </div>`).join("") + (vis.length > 400 ? `<div class="item"><small>+ ${vis.length - 400} autres : filtre ou zoome pour les voir.</small></div>` : "")
+    || `<div class="item"><small>${stores.length ? "Aucun magasin avec ces filtres." : "Aucun résultat pour l'instant."}</small></div>`;
+  if (fit && layers.length) map.fitBounds(cluster.getBounds(), { padding: [30, 30], maxZoom: 13 });
+}
+
+function toggleFav(id) {
+  const s = stores.find(x => x.id === id);
+  if (favs[id]) delete favs[id]; else if (s) favs[id] = { name: s.name, addr: s.addr, cat: s.cat, lat: s.lat, lon: s.lon };
+  saveFavs(); render(false);
+}
+
+/* ---------- Événements ---------- */
+$("btnHere").onclick = () => {
+  if (map.getZoom() < 9) { setStatus("Zone trop grande : zoome un peu plus, ou utilise « Toute la région ».", true); return; }
+  const b = map.getBounds();
+  load({ filter: `(${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()})` }, "dans cette zone");
+};
+$("btnRegion").onclick = () => {
+  const r = $("region").value;
+  if (!r) { setStatus("Choisis d'abord une région dans la liste.", true); return; }
+  load({ pre: `area["boundary"="administrative"]["admin_level"="4"]["name"="${r.replace(/"/g, '\\"')}"]->.a;`, filter: "(area.a)" }, "en " + r);
+};
+document.querySelectorAll("[data-cat]").forEach(cb => cb.onchange = () => { active[cb.dataset.cat] = cb.checked; render(false); });
+$("q").oninput = () => render(false);
+$("list").onclick = e => {
+  const f = e.target.closest("[data-fav]");
+  if (f) { e.stopPropagation(); toggleFav(f.dataset.fav); return; }
+  const it = e.target.closest(".item[data-id]");
+  if (!it) return;
+  const m = markers[it.dataset.id];
+  if (m) cluster.zoomToShowLayer(m, () => m.openPopup());
+};
+map.on("popupopen", ev => {
+  const a = ev.popup.getElement().querySelector("[data-fav]");
+  if (a) a.onclick = e => { e.preventDefault(); toggleFav(a.dataset.fav); ev.popup.setContent(popupHtml(stores.find(s => s.id === a.dataset.fav))); };
+});
+$("btnFav").onclick = () => {
+  showFavOnly = !showFavOnly;
+  $("btnFav").classList.toggle("btn-dark", showFavOnly);
+  $("btnFav").classList.toggle("btn-line", !showFavOnly);
+  if (showFavOnly && !stores.length) {
+    stores = Object.entries(favs).map(([id, f]) => ({ id, ...f, name: f.name, reasons: [], brand: "" }));
+  }
+  render(showFavOnly);
+};
+$("btnCsv").onclick = () => {
+  const vis = visible();
+  if (!vis.length) { setStatus("Rien à exporter pour l'instant.", true); return; }
+  const rows = [["Nom", "Enseigne", "Adresse", "Ville", "Éligibilité", "Raisons", "Latitude", "Longitude", "Dans ma liste"]]
+    .concat(vis.map(s => [s.name, s.brand, s.addr, s.city, LABELS[s.cat], (s.reasons || []).join(" / "), s.lat, s.lon, favs[s.id] ? "oui" : ""]));
+  const csv = "﻿" + rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(";")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = "magasins-eligibles.csv";
+  a.click();
+};
+$("form").onsubmit = e => {
+  e.preventDefault();
+  const body = `Nom : ${$("fNom").value}\nEntreprise : ${$("fEnt").value}\nTéléphone : ${$("fTel").value}\nEmail : ${$("fMail").value}\nSolution : ${$("fSol").value}\n\n${$("fMsg").value}`;
+  if (CONFIG.email) location.href = `mailto:${CONFIG.email}?subject=${encodeURIComponent("Demande d'étude CEE")}&body=${encodeURIComponent(body)}`;
+  else alert("Adresse email de contact pas encore configurée.");
+};
+render(false);
+setTimeout(() => $("btnHere").click(), 600);
+</script>
+</body>
+</html>
